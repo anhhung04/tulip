@@ -16,6 +16,8 @@ services:
     depends_on:
       - mongo
       - api
+    cpus: 1
+    mem_limit: 1g
 
   api:
     build:
@@ -27,6 +29,7 @@ services:
       - mongo
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
+      - ./services.json:${SERVICES_FILE:-/tmp/dummy}:ro
     environment:
       TULIP_MONGO: ${TULIP_MONGO}
       TULIP_TRAFFIC_DIR: ${TRAFFIC_DIR_DOCKER}
@@ -34,6 +37,9 @@ services:
       TICK_START: ${TICK_START}
       TICK_LENGTH: ${TICK_LENGTH}
       VM_IP: ${VM_IP}
+      SERVICES_FILE: ${SERVICES_FILE}
+    cpus: 2
+    mem_limit: 3g
 
   assembler:
     build:
@@ -55,3 +61,5 @@ services:
       PCAP_OVER_IP: ${PCAP_OVER_IP}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    cpus: 1
+    mem_limit: 2g
