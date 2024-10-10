@@ -4,6 +4,8 @@ services:
     restart: always
     ports:
       - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
 
   frontend:
     build:
@@ -11,8 +13,16 @@ services:
       dockerfile: Dockerfile.frontend
     image: tulip-frontend:latest
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.caronte.rule=Host(`NETANALYZER_DOMAIN`)"
+      - "traefik.http.services.caronte.loadbalancer.server.port=80"
+      - "traefik.http.services.caronte.loadbalancer.server.scheme=http"
+      - "traefik.http.routers.caronte.entrypoints=web"
     ports:
       - "3000:80"
+    networks:
+      - proxy-internet
     depends_on:
       - mongo
       - api
@@ -63,3 +73,10 @@ services:
       - "host.docker.internal:host-gateway"
     cpus: 1
     mem_limit: 1g
+
+volumes:
+  mongo-data:
+
+networks:
+  proxy-internet:
+    external: true
