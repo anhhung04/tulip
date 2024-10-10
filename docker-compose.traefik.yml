@@ -6,6 +6,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      - internal
 
   frontend:
     build:
@@ -23,6 +25,7 @@ services:
       - "3000:80"
     networks:
       - proxy-internet
+      - internal
     depends_on:
       - mongo
       - api
@@ -50,6 +53,8 @@ services:
       SERVICES_FILE: ${SERVICES_FILE:-/tmp/dummy}
     cpus: 2
     mem_limit: 2g
+    networks:
+      - internal
 
   assembler:
     build:
@@ -73,6 +78,8 @@ services:
       - "host.docker.internal:host-gateway"
     cpus: 1
     mem_limit: 1g
+    networks:
+      - internal
 
 volumes:
   mongo-data:
@@ -80,3 +87,4 @@ volumes:
 networks:
   proxy-internet:
     external: true
+  internal:
