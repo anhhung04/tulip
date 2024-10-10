@@ -41,9 +41,9 @@ def flow2pwn(flow):
     port = flow["dst_port"]
 
     script = """from pwn import *
-import sys
+import sys, os
 
-host = sys.argv[1]
+host = os.getenv("TARGET_IP")
 proc = remote(host, {})
 """.format(port)
 

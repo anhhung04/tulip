@@ -1,9 +1,6 @@
-version: "3.2"
 services:
   mongo:
-    image: mongo:5
-    networks:
-      - internal
+    image: mongo:4.0
     restart: always
     ports:
       - "27017:27017"
@@ -11,29 +8,23 @@ services:
   frontend:
     build:
       context: frontend
-      dockerfile: Dockerfile-frontend
+      dockerfile: Dockerfile.frontend
     image: tulip-frontend:latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - mongo
       - api
-    networks:
-      - internal
-    environment:
-      API_SERVER_ENDPOINT: http://api:5000/
 
   api:
     build:
       context: services/api
-      dockerfile: Dockerfile-api
+      dockerfile: Dockerfile.api
     image: tulip-api:latest
     restart: unless-stopped
     depends_on:
       - mongo
-    networks:
-      - internal
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
     environment:
@@ -51,8 +42,6 @@ services:
     image: tulip-flagids:latest
     depends_on:
       - mongo
-    networks:
-      - internal
     environment:
       TULIP_MONGO: ${TULIP_MONGO}
       TICK_START: ${TICK_START}
@@ -64,13 +53,11 @@ services:
   assembler:
     build:
       context: services/go-importer
-      dockerfile: Dockerfile-assembler
+      dockerfile: Dockerfile.assembler
     image: tulip-assembler:latest
     restart: unless-stopped
     depends_on:
       - mongo
-    networks:
-      - internal
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
     command: "./assembler -dir ${TRAFFIC_DIR_DOCKER}"
@@ -84,22 +71,16 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-
-  enricher:
-    build:
-      context: services/go-importer
-      dockerfile: Dockerfile-enricher
-    image: tulip-enricher:latest
-    restart: unless-stopped
-    depends_on:
-      - mongo
-    networks:
-      - internal
-    volumes:
-      - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
-    command: "./enricher -eve ${TRAFFIC_DIR_DOCKER}/eve.json"
-    environment:
-      TULIP_MONGO: ${TULIP_MONGO}
-
-networks:
-  internal:
+  # enricher:
+  #   build:
+  #     context: services/go-importer
+  #     dockerfile: Dockerfile.enricher
+  #   image: tulip-enricher:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mongo
+  #   volumes:
+  #     - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
+  #   command: "./enricher -eve ${TRAFFIC_DIR_DOCKER}/eve.json"
+  #   environment:
+  #     TULIP_MONGO: ${TULIP_MONGO}

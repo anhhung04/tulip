@@ -109,9 +109,9 @@ def convert_single_http_requests(raw_request, flow, tokenize=True, use_requests_
 
     rtemplate = Environment(loader=BaseLoader()).from_string("""import os
 import requests
-import sys
+import sys, os
 
-host = sys.argv[1]
+host = os.getenv("TARGET_IP")
 {% if use_requests_session %}
 s = requests.Session()
 
