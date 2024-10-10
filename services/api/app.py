@@ -23,7 +23,9 @@
 # along with Flower.  If not, see <https://www.gnu.org/licenses/>.
 
 import traceback
-from flask import Flask, Response, send_file
+from fastapi import FastAPI, Response, HTTPException, Request
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from configurations import services, traffic_dir, start_date, tick_length, flag_regex
 from pathlib import Path
@@ -31,128 +33,126 @@ from data2req import convert_flow_to_http_requests, convert_single_http_requests
 from base64 import b64decode
 from db import DB
 from bson import json_util
-from flask_cors import CORS
-from flask import request
+from fastapi.middleware.cors import CORSMiddleware
 
 from flow2pwn import flow2pwn
 
-application = Flask(__name__)
-CORS(application)
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 db = DB()
 
-
 def return_json_response(object):
-    return Response(json_util.dumps(object), mimetype='application/json')
+    return Response(content=json_util.dumps(object), media_type='application/json')
 
 def return_text_response(object):
-    return Response(object, mimetype='text/plain')
+    return Response(content=object, media_type='text/plain')
 
-
-@application.route('/')
+@app.get('/')
 def hello_world():
     return 'Hello, World!'
 
-@application.route('/tick_info')
-def getTickInfo():
+@app.get('/tick_info')
+def get_tick_info():
     data = {
         "startDate": start_date,
         "tickLength": tick_length
     }
     return return_json_response(data)
 
-@application.route('/query', methods=['POST'])
-def query():
-    json = request.get_json()
-    result = db.getFlowList(json)
+class QueryModel(BaseModel):
+    # Define the structure of your query JSON here
+    pass
+
+@app.post('/query')
+def query(query: QueryModel):
+    result = db.getFlowList(query.dict())
     return return_json_response(result)
 
-@application.route('/tags')
-def getTags():
+@app.get('/tags')
+def get_tags():
     result = db.getTagList()
     return return_json_response(result)
 
-@application.route('/signature/<id>')
-def signature(id):
-    result = db.getSignature(int(id))
+@app.get('/signature/{id}')
+def signature(id: int):
+    result = db.getSignature(id)
     return return_json_response(result)
 
-@application.route('/star/<flow_id>/<star_to_set>')
-def setStar(flow_id, star_to_set):
+@app.get('/star/{flow_id}/{star_to_set}')
+def set_star(flow_id: str, star_to_set: str):
     db.setStar(flow_id, star_to_set != "0")
     return "ok!"
 
-
-@application.route('/services')
-def getServices():
+@app.get('/services')
+def get_services():
     return return_json_response(services)
 
-
-@application.route('/flag_regex')
-def getFlagRegex():
+@app.get('/flag_regex')
+def get_flag_regex():
     return return_json_response(flag_regex)
 
+@app.get('/flow/{id}')
+def get_flow_detail(id: str):
+    return return_json_response(db.getFlowDetail(id))
 
-@application.route('/flow/<id>')
-def getFlowDetail(id):
-    to_ret = return_json_response(db.getFlowDetail(id))
-    return to_ret
-
-
-@application.route('/to_single_python_request', methods=['POST'])
-def convertToSingleRequest():
-    flow_id = request.args.get("id", "")
+@app.post('/to_single_python_request')
+async def convert_to_single_request(request: Request):
+    flow_id = request.query_params.get("id", "")
     if flow_id == "":
         return return_text_response("There was an error while converting the request:\n{}: {}".format("No flow id", "No flow id param"))
-    #TODO check flow null or what
     flow = db.getFlowDetail(flow_id)
     if not flow:
         return return_text_response("There was an error while converting the request:\n{}: {}".format("Invalid flow", "Invalid flow id"))
-    data = b64decode(request.data)
-    tokenize = request.args.get("tokenize", False)
-    use_requests_session = request.args.get("use_requests_session", False)
+    data = b64decode(await request.body())
+    tokenize = request.query_params.get("tokenize", "false").lower() == "true"
+    use_requests_session = request.query_params.get("use_requests_session", "false").lower() == "true"
     try:
         converted = convert_single_http_requests(data, flow, tokenize, use_requests_session)
     except Exception as ex:
         return return_text_response("There was an error while converting the request:\n{}: {}".format(type(ex).__name__, traceback.format_exc()))
     return return_text_response(converted)
 
-@application.route('/to_python_request/<id>')
-def convertToRequests(id):
-    #TODO check flow null or what
+@app.get('/to_python_request/{id}')
+def convert_to_requests(id: str, tokenize: bool = True, use_requests_session: bool = True):
     flow = db.getFlowDetail(id)
     if not flow:
         return return_text_response("There was an error while converting the request:\n{}: {}".format("Invalid flow", "Invalid flow id"))
-    tokenize = request.args.get("tokenize", True)
-    use_requests_session = request.args.get("use_requests_session", True)
     try:
         converted = convert_flow_to_http_requests(flow, tokenize, use_requests_session)
     except Exception as ex:
         return return_text_response("There was an error while converting the request:\n{}: {}".format(type(ex).__name__, traceback.format_exc()))
     return return_text_response(converted)
 
-@application.route('/to_pwn/<id>')
-def confertToPwn(id):
+@app.get('/to_pwn/{id}')
+def convert_to_pwn(id: str):
     flow = db.getFlowDetail(id)
     converted = flow2pwn(flow)
     return return_text_response(converted)
 
-@application.route('/download/')
-def downloadFile():
-    filepath = request.args.get('file')
-    if filepath is None:
-        return return_text_response("There was an error while downloading the requested file:\n{}: {}".format("Invalid 'file'", "No 'file' given"))
-    filepath = Path(filepath)
+@app.get('/download/')
+def download_file(file: str):
+    if file is None:
+        raise HTTPException(status_code=400, detail="There was an error while downloading the requested file: No 'file' given")
+    filepath = Path(file)
 
     # Check for path traversal by resolving the file first.
     filepath = filepath.resolve()
-    if not traffic_dir in filepath.parents:
-        return return_text_response("There was an error while downloading the requested file:\n{}: {}".format("Invalid 'file'", "'file' was not in a subdirectory of traffic_dir"))
+    if traffic_dir not in filepath.parents:
+        raise HTTPException(status_code=400, detail="There was an error while downloading the requested file: 'file' was not in a subdirectory of traffic_dir")
 
     try:
-        return send_file(filepath, as_attachment=True)
+        return FileResponse(filepath, filename=filepath.name)
     except FileNotFoundError:
-        return return_text_response("There was an error while downloading the requested file:\n{}: {}".format("Invalid 'file'", "'file' not found"))
+        raise HTTPException(status_code=404, detail="There was an error while downloading the requested file: 'file' not found")
 
 if __name__ == "__main__":
-    application.run(host='0.0.0.0',threaded=True)
-
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

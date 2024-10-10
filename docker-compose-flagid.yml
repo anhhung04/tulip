@@ -35,6 +35,21 @@ services:
       TICK_LENGTH: ${TICK_LENGTH}
       VM_IP: ${VM_IP}
 
+  flagids:
+    restart: on-failure
+    build:
+      context: services/flagids
+    image: tulip-flagids:latest
+    depends_on:
+      - mongo
+    environment:
+      TULIP_MONGO: ${TULIP_MONGO}
+      TICK_START: ${TICK_START}
+      TICK_LENGTH: ${TICK_LENGTH}
+      FLAGID_SCRAPE: ${FLAGID_SCRAPE}
+      TEAM_ID: ${TEAM_ID}
+      FLAGID_ENDPOINT: ${FLAGID_ENDPOINT}
+
   assembler:
     build:
       context: services/go-importer
@@ -55,3 +70,17 @@ services:
       PCAP_OVER_IP: ${PCAP_OVER_IP}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  # enricher:
+  #   build:
+  #     context: services/go-importer
+  #     dockerfile: Dockerfile.enricher
+  #   image: tulip-enricher:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mongo
+  #   volumes:
+  #     - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
+  #   command: "./enricher -eve ${TRAFFIC_DIR_DOCKER}/eve.json"
+  #   environment:
+  #     TULIP_MONGO: ${TULIP_MONGO}

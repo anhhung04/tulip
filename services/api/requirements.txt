@@ -1,4 +1,4 @@
-Flask_Cors
 pymongo
-Flask
 requests
+fastapi[standard]
+jinja2

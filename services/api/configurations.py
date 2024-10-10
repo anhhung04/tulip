@@ -23,6 +23,7 @@
 # along with Flower.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import json
 from pathlib import Path
 
 traffic_dir = Path(os.getenv("TULIP_TRAFFIC_DIR", "/traffic"))
@@ -33,7 +34,11 @@ flag_regex = os.getenv("FLAG_REGEX", "[A-Z0-9]{31}=")
 mongo_server = f'mongodb://{mongo_host}/'
 vm_ip = os.getenv("VM_IP", "10.10.3.1")
 
-services = [{"ip": vm_ip, "port": 9876, "name": "cc_market"},
+if os.path.exists(os.getenv("SERVICES_FILE", "/tmp/dummy")):
+    with open("/tmp/services.json", "r") as f:
+        services = json.load(f)
+else:
+    services = [{"ip": vm_ip, "port": 9876, "name": "cc_market"},
             {"ip": vm_ip, "port": 80, "name": "maze"},
             {"ip": vm_ip, "port": 8080, "name": "scadent"},
             {"ip": vm_ip, "port": 5000, "name": "starchaser"},
