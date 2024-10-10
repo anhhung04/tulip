@@ -1,15 +1,17 @@
 services:
-  tulip-mongo:
+  mongo:
     image: mongo:4.0
     restart: always
+    container_name: tulip-mongo
+    hostname: tulip-mongo
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
     networks:
-      - tulip-net
+      - internal
 
-  tulip-frontend:
+  frontend:
     build:
       context: frontend
       dockerfile: Dockerfile.frontend
@@ -25,26 +27,28 @@ services:
       - "3000:80"
     networks:
       - proxy-internet
-      - tulip-net
+      - internal
     depends_on:
-      - tulip-mongo
-      - tulip-api
+      - mongo
+      - api
     cpus: 1
     mem_limit: 1g
 
-  tulip-api:
+  api:
     build:
       context: services/api
       dockerfile: Dockerfile.api
     image: tulip-api:latest
+    container_name: tulip-api
+    hostname: tulip-api
     restart: unless-stopped
     depends_on:
-      - tulip-mongo
+      - mongo
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
       - ./services.json:${SERVICES_FILE:-/tmp/dummy}:ro
     environment:
-      TULIP_MONGO: ${TULIP_MONGO}
+      TULIP_MONGO: ${TULIP_MONGO:-tulip-mongo:27017}
       TULIP_TRAFFIC_DIR: ${TRAFFIC_DIR_DOCKER}
       FLAG_REGEX: ${FLAG_REGEX}
       TICK_START: ${TICK_START}
@@ -54,16 +58,18 @@ services:
     cpus: 2
     mem_limit: 2g
     networks:
-      - tulip-net
+      - internal
 
-  tulip-assembler:
+  assembler:
     build:
       context: services/go-importer
       dockerfile: Dockerfile.assembler
     image: tulip-assembler:latest
+    container_name: tulip-assembler
+    hostname: tulip-assembler
     restart: unless-stopped
     depends_on:
-      - tulip-mongo
+      - mongo
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
     command: "./assembler -dir ${TRAFFIC_DIR_DOCKER}"
@@ -79,7 +85,7 @@ services:
     cpus: 1
     mem_limit: 1g
     networks:
-      - tulip-net
+      - internal
 
 volumes:
   mongo-data:
@@ -87,5 +93,4 @@ volumes:
 networks:
   proxy-internet:
     external: true
-  tulip-net:
-    driver: bridge
+  internal:
