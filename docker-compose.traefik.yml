@@ -47,7 +47,7 @@ services:
       TICK_START: ${TICK_START}
       TICK_LENGTH: ${TICK_LENGTH}
       VM_IP: ${VM_IP}
-      SERVICES_FILE: ${SERVICES_FILE}
+      SERVICES_FILE: ${SERVICES_FILE:-/tmp/dummy}
     cpus: 2
     mem_limit: 2g
 
