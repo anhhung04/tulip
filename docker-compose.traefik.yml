@@ -1,5 +1,5 @@
 services:
-  mongo:
+  tulip-mongo:
     image: mongo:4.0
     restart: always
     ports:
@@ -7,9 +7,9 @@ services:
     volumes:
       - mongo-data:/data/db
     networks:
-      - internal
+      - tulip-net
 
-  frontend:
+  tulip-frontend:
     build:
       context: frontend
       dockerfile: Dockerfile.frontend
@@ -25,21 +25,21 @@ services:
       - "3000:80"
     networks:
       - proxy-internet
-      - internal
+      - tulip-net
     depends_on:
-      - mongo
-      - api
+      - tulip-mongo
+      - tulip-api
     cpus: 1
     mem_limit: 1g
 
-  api:
+  tulip-api:
     build:
       context: services/api
       dockerfile: Dockerfile.api
     image: tulip-api:latest
     restart: unless-stopped
     depends_on:
-      - mongo
+      - tulip-mongo
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
       - ./services.json:${SERVICES_FILE:-/tmp/dummy}:ro
@@ -54,16 +54,16 @@ services:
     cpus: 2
     mem_limit: 2g
     networks:
-      - internal
+      - tulip-net
 
-  assembler:
+  tulip-assembler:
     build:
       context: services/go-importer
       dockerfile: Dockerfile.assembler
     image: tulip-assembler:latest
     restart: unless-stopped
     depends_on:
-      - mongo
+      - tulip-mongo
     volumes:
       - ${TRAFFIC_DIR_HOST}:${TRAFFIC_DIR_DOCKER}:ro
     command: "./assembler -dir ${TRAFFIC_DIR_DOCKER}"
@@ -79,7 +79,7 @@ services:
     cpus: 1
     mem_limit: 1g
     networks:
-      - internal
+      - tulip-net
 
 volumes:
   mongo-data:
@@ -87,4 +87,5 @@ volumes:
 networks:
   proxy-internet:
     external: true
-  internal:
+  tulip-net:
+    driver: bridge
