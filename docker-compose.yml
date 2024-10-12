@@ -15,11 +15,11 @@ services:
       - "3000:80"
     depends_on:
       - mongo
-      - api
+      - tulip-api
     cpus: 1
     mem_limit: 1g
 
-  api:
+  tulip-api:
     build:
       context: services/api
       dockerfile: Dockerfile.api
