@@ -36,7 +36,10 @@ class DB:
     def __init__(self):
         try:
             self.client = MongoClient(
-                mongo_server, serverSelectionTimeoutMS=200, unicode_decode_error_handler='ignore')
+                mongo_server,
+                serverSelectionTimeoutMS=200,
+                unicode_decode_error_handler="ignore",
+            )
             self.client.server_info()
             self.db = self.client.pcap
             self.pcap_coll = self.db.pcap
@@ -45,34 +48,37 @@ class DB:
             self.tag_col = self.db.tags
 
         except ServerSelectionTimeoutError as err:
-            sys.stderr.write("MongoDB server not active on %s\n%s" %
-                             (mongo_server, err))
+            sys.stderr.write(
+                "MongoDB server not active on %s\n%s" % (mongo_server, err)
+            )
             sys.exit(1)
 
     def getFlowList(self, filters):
         f = {}
-        if "flow.data" in filters:
-            f["flow.data"] = re.compile(filters["flow.data"], re.IGNORECASE)
+        print("filters:")
+        pprint.pprint(filters)
+        if "flow_data" in filters:
+            f["flow.data"] = re.compile(filters["flow_data"], re.IGNORECASE)
         if "dst_ip" in filters:
             f["dst_ip"] = filters["dst_ip"]
         if "dst_port" in filters:
             if int(filters["dst_port"]) == -1:
                 # remove dst_ip
-                f.pop('dst_ip', None)
-                f["dst_port"] = {
-                    "$nin": [service["port"] for service in services]
-                }
+                f.pop("dst_ip", None)
+                f["dst_port"] = {"$nin": [service["port"] for service in services]}
             else:
                 f["dst_port"] = int(filters["dst_port"])
-                
+
         if "from_time" in filters and "to_time" in filters:
-            f["time"] = {"$gte": int(filters["from_time"]),
-                         "$lt": int(filters["to_time"])}
-        
+            f["time"] = {
+                "$gte": int(filters["from_time"]),
+                "$lt": int(filters["to_time"]),
+            }
+
         tag_queries = {}
-        if "includeTags" in filters:
+        if "includeTags" in filters and len(filters["includeTags"]) > 0:
             tag_queries["$all"] = [str(elem) for elem in filters["includeTags"]]
-        if "excludeTags" in filters:
+        if "excludeTags" in filters and len(filters["excludeTags"]) > 0:
             tag_queries["$nin"] = [str(elem) for elem in filters["excludeTags"]]
 
         if len(tag_queries.keys()) > 0:
@@ -97,16 +103,18 @@ class DB:
             tmp = self.signature_coll.find_one({"_id": ObjectId(sig_id)})
             if tmp:
                 ret["signatures"].append(tmp)
-        
+
         return ret
 
     def setStar(self, flow_id, star):
         if star:
-            self.pcap_coll.find_one_and_update({"_id": ObjectId(flow_id)}, {
-                                               "$push": {"tags": "starred"}})
+            self.pcap_coll.find_one_and_update(
+                {"_id": ObjectId(flow_id)}, {"$push": {"tags": "starred"}}
+            )
         else:
-            self.pcap_coll.find_one_and_update({"_id": ObjectId(flow_id)}, {
-                                               "$pull": {"tags": "starred"}})
+            self.pcap_coll.find_one_and_update(
+                {"_id": ObjectId(flow_id)}, {"$pull": {"tags": "starred"}}
+            )
 
     def isFileAlreadyImported(self, file_name):
         return self.file_coll.find({"file_name": file_name}).count() != 0
