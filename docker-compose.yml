@@ -23,6 +23,9 @@ services:
     build:
       context: services/api
       dockerfile: Dockerfile.api
+      args:
+        - USER=${TULIP_USER:-admin}
+        - PASSWORD=${TULIP_PASS:-admin}
     image: tulip-api:latest
     restart: unless-stopped
     depends_on:

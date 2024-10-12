@@ -13,6 +13,14 @@ RUN yarn build
 
 FROM nginx:alpine3.20
 
+ARG USER=admin
+ARG PASSWORD=admin
+ENV USER=$USER
+ENV PASSWORD=$PASSWORD
+
+RUN apk add --no-cache apache2-utils
+RUN htpasswd -bc /etc/nginx/.htpasswd $USER $PASSWORD
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 
